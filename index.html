@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nifty Option Dashboard Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js CDN for interactive visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- PCR Alert Banner -->
+    <div id="pcr-alert-banner" class="alert-banner" style="display: none;">
+        <div class="alert-content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span id="pcr-alert-text">PCR Alert! Threshold crossed.</span>
+        </div>
+        <button class="alert-close-btn" onclick="document.getElementById('pcr-alert-banner').style.display='none'">×</button>
+    </div>
+
+    <div class="app-container">
+        <!-- Main Dashboard Header -->
+        <header>
+            <div class="brand-section">
+                <div class="logo-icon">
+                    <!-- Dashboard Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </div>
+                <div class="brand-title">
+                    <h1>Nifty Option Dashboard</h1>
+                    <p>Live Options Chain &amp; Strategy Analytics Terminal</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Ticker -->
+            <div class="header-controls">
+                <!-- Expiry Date Selector -->
+                <div class="control-group">
+                    <label class="control-label" for="expiry-select">Expiry Date</label>
+                    <select id="expiry-select" class="expiry-select">
+                        <!-- Options populated via JS -->
+                    </select>
+                </div>
+
+                <!-- Simulated Live Feed Switch -->
+                <div class="switch-container" id="live-feed-switch">
+                    <span class="live-indicator" id="live-status">
+                        <span class="dot"></span>
+                        LIVE MOCK FEED
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="live-feed-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Manual Refresh Button -->
+                <button id="manual-refresh-btn" class="custom-button" style="padding: 0.4rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Refresh
+                </button>
+
+                <!-- Spot Price Ticker -->
+                <div class="spot-ticker">
+                    <div class="ticker-value-row">
+                        <span class="ticker-price" id="spot-price">23,500.00</span>
+                        <span class="ticker-change" id="spot-change">+120.50 (+0.51%)</span>
+                    </div>
+                    <span class="ticker-label">NIFTY 50 INDEX (SPOT)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI Grid Metrics -->
+        <section class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <!-- PCR Indicator with threshold configs -->
+            <div class="kpi-card" id="kpi-pcr-card">
+                <div class="kpi-header">
+                    <span>Put-Call Ratio (PCR)</span>
+                    <span class="kpi-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </span>
+                </div>
+                <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 0.25rem;">
+                    <div class="kpi-value" id="pcr-val" style="margin: 0;">1.05</div>
+                    <div class="pcr-alert-config" style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; color: var(--text-muted);">
+                        <input type="number" id="pcr-alert-low" class="pcr-alert-input" value="0.75" step="0.05" title="Lower Threshold Alert" style="width: 40px; background: #0c0e17; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; text-align: center; padding: 0.1rem; font-family: var(--font-mono); outline: none;">
+                        <span>&le; PCR &le;</span>
+                        <input type="number" id="pcr-alert-high" class="pcr-alert-input" value="1.25" step="0.05" title="Upper Threshold Alert" style="width: 40px; background: #0c0e17; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; text-align: center; padding: 0.1rem; font-family: var(--font-mono); outline: none;">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem;" class="kpi-footer">
+                    <span id="pcr-sentiment">Bullish / Neutral</span>
+                    <label style="display: flex; align-items: center; gap: 0.2rem; cursor: pointer; color: var(--text-muted); font-size: 0.65rem;">
+                        <input type="checkbox" id="pcr-alert-enable" checked style="accent-color: var(--color-blue);"> Alerts
+                    </label>
+                </div>
+            </div>
+
+            <!-- Support Level -->
+            <div class="kpi-card" id="kpi-support-card">
+                <div class="kpi-header">
+                    <span>Key Support (Put OI)</span>
+                    <span class="kpi-icon" style="color: var(--color-put)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 12-7 7-7-7"/><path d="m19 5-7 7-7-7"/></svg>
+                    </span>
+                </div>
+                <div class="kpi-value" style="color: var(--color-put)" id="support-val">23,400</div>
+                <div class="kpi-footer" id="support-desc">OI: 524.3K Contracts</div>
+            </div>
+
+            <!-- Resistance Level -->
+            <div class="kpi-card" id="kpi-resistance-card">
+                <div class="kpi-header">
+                    <span>Key Resistance (Call OI)</span>
+                    <span class="kpi-icon" style="color: var(--color-call)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="m5 19 7-7 7 7"/></svg>
+                    </span>
+                </div>
+                <div class="kpi-value" style="color: var(--color-call)" id="resistance-val">23,700</div>
+                <div class="kpi-footer" id="resistance-desc">OI: 610.1K Contracts</div>
+            </div>
+
+            <!-- Max Pain Strike -->
+            <div class="kpi-card" id="kpi-maxpain-card">
+                <div class="kpi-header">
+                    <span>Max Pain Strike</span>
+                    <span class="kpi-icon" style="color: var(--color-yellow)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                    </span>
+                </div>
+                <div class="kpi-value" style="color: var(--color-yellow)" id="max-pain-val">23,500</div>
+                <div class="kpi-footer" id="max-pain-desc">Writers minimum payout point</div>
+            </div>
+
+            <!-- OI Shift Signal Card -->
+            <div class="kpi-card" id="kpi-signal-card">
+                <div class="kpi-header">
+                    <span>OI Shift Signal</span>
+                    <span class="kpi-icon" id="signal-icon" style="color: var(--color-blue)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/></svg>
+                    </span>
+                </div>
+                <div class="kpi-value" id="signal-val" style="color: var(--color-blue)">NEUTRAL</div>
+                <div class="kpi-footer" id="signal-desc">Analyzing OI additions...</div>
+            </div>
+
+            <!-- India VIX -->
+            <div class="kpi-card" id="kpi-vix-card">
+                <div class="kpi-header">
+                    <span>India VIX</span>
+                    <span class="kpi-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
+                    </span>
+                </div>
+                <div class="kpi-value" id="vix-val">13.45</div>
+                <div class="kpi-footer" id="vix-change">-2.1% (Market Calm)</div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <nav class="tab-navigation">
+            <button class="nav-tab active" data-tab="option-chain">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M21 9H3"/><path d="M21 15H3"/><path d="M12 3v18"/></svg>
+                Option Chain Matrix
+            </button>
+            <button class="nav-tab" data-tab="oi-analysis">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                Open Interest (OI) Analysis
+            </button>
+            <button class="nav-tab" data-tab="max-pain-tab">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Max Pain &amp; IV Smile
+            </button>
+            <button class="nav-tab" data-tab="strategy-builder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                Strategy Builder &amp; Payoff
+            </button>
+            <button class="nav-tab" data-tab="greeks-calculator">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                Greeks Calculator
+            </button>
+        </nav>
+
+        <!-- Tab Panel 1: Option Chain Matrix -->
+        <div class="tab-panel active" id="panel-option-chain">
+            <div class="option-chain-controls">
+                <div class="chain-filters">
+                    <div class="control-group">
+                        <label class="control-label" for="strike-range">Strike Range Depth</label>
+                        <select id="strike-range" class="expiry-select" style="padding-right: 2rem;">
+                            <option value="10">ATM ± 5 Strikes (11 total)</option>
+                            <option value="15" selected>ATM ± 7 Strikes (15 total)</option>
+                            <option value="21">All Strikes (21 total)</option>
+                        </select>
+                    </div>
+
+                    <!-- View Mode Switcher -->
+                    <div class="control-group" style="margin-left: 1rem;">
+                        <label class="control-label">View Mode</label>
+                        <div style="display: flex; gap: 0.25rem; background: #111420; padding: 0.25rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <button id="toggle-view-standard" class="custom-button active" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border: none; border-radius: 6px; background: var(--color-blue); color: white; cursor: pointer;">Standard</button>
+                            <button id="toggle-view-greeks" class="custom-button" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border: none; border-radius: 6px; background: transparent; cursor: pointer; color: var(--text-secondary);">Option Greeks</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                    <span>Highlighted row is closest ATM. ITM Calls (Left, shaded), ITM Puts (Right, shaded).</span>
+                </div>
+            </div>
+
+            <!-- Scrollable Options Matrix Table -->
+            <div class="option-chain-container">
+                <table class="option-chain-table standard-view" id="chain-table">
+                    <thead>
+                        <tr>
+                            <!-- CALLS Headers -->
+                            <th colspan="7" class="call-section-header" id="calls-section-title">CALLS (RESISTANCE ANALYSIS)</th>
+                            <!-- STRIKE Header -->
+                            <th class="strike-header">STRIKE</th>
+                            <!-- PUTS Headers -->
+                            <th colspan="7" class="put-section-header" id="puts-section-title">PUTS (SUPPORT ANALYSIS)</th>
+                        </tr>
+                        <tr>
+                            <!-- Call fields -->
+                            <th class="std-col">Add</th>
+                            <th class="std-col">OI (Lakhs)</th>
+                            <th class="std-col">Chg OI</th>
+                            <th class="std-col">Volume</th>
+                            <th class="std-col">IV %</th>
+                            
+                            <th class="greek-col">Delta (Δ)</th>
+                            <th class="greek-col">Gamma (Γ)</th>
+                            <th class="greek-col">Theta (Θ)</th>
+                            <th class="greek-col">Vega (ν)</th>
+                            
+                            <th class="both-col">LTP</th>
+                            <th class="std-col">Chg</th>
+                            
+                            <!-- Strike -->
+                            <th class="both-col text-center">Strike Price</th>
+                            
+                            <!-- Put fields -->
+                            <th class="std-col">Chg</th>
+                            <th class="both-col">LTP</th>
+                            
+                            <th class="greek-col">Vega (ν)</th>
+                            <th class="greek-col">Theta (Θ)</th>
+                            <th class="greek-col">Gamma (Γ)</th>
+                            <th class="greek-col">Delta (Δ)</th>
+                            
+                            <th class="std-col">IV %</th>
+                            <th class="std-col">Volume</th>
+                            <th class="std-col">Chg OI</th>
+                            <th class="std-col">OI (Lakhs)</th>
+                            <th class="std-col">Add</th>
+                        </tr>
+                    </thead>
+                    <tbody id="option-chain-tbody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab Panel 2: Open Interest (OI) Analysis -->
+        <div class="tab-panel" id="panel-oi-analysis">
+            <div class="charts-grid">
+                <!-- Open Interest Bar Chart -->
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div>
+                            <h3 class="chart-panel-title">Strike-wise Open Interest (OI)</h3>
+                            <p class="chart-panel-desc">Highest Call OI = Resistance, Highest Put OI = Support</p>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="oi-chart-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- OI Change Bar Chart -->
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div>
+                            <h3 class="chart-panel-title">OI Change Analysis (Intraday)</h3>
+                            <p class="chart-panel-desc">Shows net additions (writing) or subtractions (covering) today</p>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="oi-change-chart-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Panel 3: Max Pain & IV Smile -->
+        <div class="tab-panel" id="panel-max-pain-tab">
+            <div class="charts-grid">
+                <!-- Max Pain Payout Chart -->
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div>
+                            <h3 class="chart-panel-title">Option Buyers Loss (Max Pain)</h3>
+                            <p class="chart-panel-desc">The minimum value indicates the strike where writers incur the least loss</p>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="max-pain-chart-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- IV Smile Chart -->
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div>
+                            <h3 class="chart-panel-title">Implied Volatility Smile (Skew)</h3>
+                            <p class="chart-panel-desc">IV curve across strike prices. Higher curve = higher option premiums</p>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="iv-smile-chart-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Panel 4: Option Strategy Builder -->
+        <div class="tab-panel" id="panel-strategy-builder">
+            <div class="builder-layout">
+                <!-- Left Side: Strategy Legs Builder -->
+                <div class="builder-panel">
+                    <div class="strategy-templates-row">
+                        <div class="control-group">
+                            <label class="control-label" for="strategy-template">Select Strategy</label>
+                            <select id="strategy-template" class="expiry-select" style="min-width: 180px;">
+                                <option value="custom">-- Custom Leg Builder --</option>
+                                <option value="bull_call_spread">Bull Call Spread</option>
+                                <option value="bear_put_spread">Bear Put Spread</option>
+                                <option value="iron_condor">Iron Condor</option>
+                                <option value="straddle">Long Straddle</option>
+                                <option value="strangle">Long Strangle</option>
+                                <option value="iron_butterfly">Iron Butterfly</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="add-custom-leg" class="custom-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                Add Leg
+                            </button>
+                            <button id="clear-strategy" class="custom-button danger">Reset Builder</button>
+                        </div>
+                    </div>
+
+                    <!-- Active Legs List -->
+                    <div class="legs-table-container">
+                        <table class="legs-table">
+                            <thead>
+                                <tr>
+                                    <th>Action</th>
+                                    <th>Type</th>
+                                    <th>Strike</th>
+                                    <th>Premium (₹)</th>
+                                    <th>Lot Size</th>
+                                    <th>Qty (Lots)</th>
+                                    <th style="width: 50px; text-align: center;">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="strategy-legs-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                        <div id="builder-empty-state" class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                            <span>No legs added yet. Choose a template above or click "+" in the Option Chain table to add legs.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Payoff Diagram & Metrics -->
+                <div class="simulator-output">
+                    <!-- Payoff Chart -->
+                    <div class="chart-panel" style="min-height: 320px;">
+                        <div class="chart-panel-header">
+                            <div>
+                                <h3 class="chart-panel-title">Payoff Profile (P&amp;L at Expiration)</h3>
+                                <p class="chart-panel-desc">Calculated across index levels. Green = Profit, Red = Loss</p>
+                            </div>
+                        </div>
+                        <div class="chart-canvas-container">
+                            <canvas id="payoff-chart-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Strategy Summary Metrics -->
+                    <div class="payoff-metrics-grid">
+                        <!-- Net Premium -->
+                        <div class="payoff-card">
+                            <span class="payoff-card-title">Net Premium</span>
+                            <span class="payoff-card-value" id="payoff-net-premium">₹0.00</span>
+                        </div>
+
+                        <!-- Max Profit -->
+                        <div class="payoff-card">
+                            <span class="payoff-card-title">Max Profit</span>
+                            <span class="payoff-card-value val-positive" id="payoff-max-profit">₹0.00</span>
+                        </div>
+
+                        <!-- Max Loss -->
+                        <div class="payoff-card">
+                            <span class="payoff-card-title">Max Loss</span>
+                            <span class="payoff-card-value val-negative" id="payoff-max-loss">₹0.00</span>
+                        </div>
+
+                        <!-- Breakevens -->
+                        <div class="payoff-card">
+                            <span class="payoff-card-title">Breakeven(s)</span>
+                            <span class="payoff-card-value" id="payoff-breakeven" style="font-size: 1.05rem;">N/A</span>
+                        </div>
+                    </div>
+
+                    <!-- Strategy Greeks -->
+                    <div class="payoff-metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="payoff-card" style="padding: 0.75rem; text-align: center;">
+                            <span class="payoff-card-title">Delta</span>
+                            <span class="payoff-card-value" id="strat-delta" style="font-size: 1.15rem; margin-top: 0.15rem;">0.00</span>
+                        </div>
+                        <div class="payoff-card" style="padding: 0.75rem; text-align: center;">
+                            <span class="payoff-card-title">Gamma</span>
+                            <span class="payoff-card-value" id="strat-gamma" style="font-size: 1.15rem; margin-top: 0.15rem;">0.00</span>
+                        </div>
+                        <div class="payoff-card" style="padding: 0.75rem; text-align: center;">
+                            <span class="payoff-card-title">Theta</span>
+                            <span class="payoff-card-value" id="strat-theta" style="font-size: 1.15rem; margin-top: 0.15rem;">0.00</span>
+                        </div>
+                        <div class="payoff-card" style="padding: 0.75rem; text-align: center;">
+                            <span class="payoff-card-title">Vega</span>
+                            <span class="payoff-card-value" id="strat-vega" style="font-size: 1.15rem; margin-top: 0.15rem;">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Panel 5: Option Greeks Calculator -->
+        <div class="tab-panel" id="panel-greeks-calculator">
+            <div class="greeks-calc-layout">
+                <!-- Left Column: Inputs Form -->
+                <div class="greeks-form">
+                    <!-- Spot Price Slider -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <span class="form-label-name">Spot Price (Underlying)</span>
+                            <span class="form-label-val" id="slider-spot-val">23500</span>
+                        </div>
+                        <input type="range" class="form-slider" id="slider-spot" min="22000" max="25000" step="10" value="23500">
+                    </div>
+
+                    <!-- Strike Price Slider -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <span class="form-label-name">Strike Price</span>
+                            <span class="form-label-val" id="slider-strike-val">23500</span>
+                        </div>
+                        <input type="range" class="form-slider" id="slider-strike" min="22000" max="25000" step="50" value="23500">
+                    </div>
+
+                    <!-- Days to Expiry Slider -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <span class="form-label-name">Days to Expiry</span>
+                            <span class="form-label-val" id="slider-days-val">10 days</span>
+                        </div>
+                        <input type="range" class="form-slider" id="slider-days" min="1" max="100" step="1" value="10">
+                    </div>
+
+                    <!-- Implied Volatility Slider -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <span class="form-label-name">Implied Volatility (IV %)</span>
+                            <span class="form-label-val" id="slider-iv-val">15.00%</span>
+                        </div>
+                        <input type="range" class="form-slider" id="slider-iv" min="5" max="60" step="0.5" value="15">
+                    </div>
+
+                    <!-- Interest Rate Slider -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <span class="form-label-name">Interest Rate (r %)</span>
+                            <span class="form-label-val" id="slider-rate-val">7.00%</span>
+                        </div>
+                        <input type="range" class="form-slider" id="slider-rate" min="0" max="15" step="0.25" value="7">
+                    </div>
+                </div>
+
+                <!-- Right Column: Results Display -->
+                <div class="greeks-results-panel">
+                    <div class="greeks-result-columns">
+                        <!-- Call Option Box -->
+                        <div class="greek-result-box">
+                            <h4 class="greek-box-title call-box">CALL OPTION</h4>
+                            <div>
+                                <span class="greek-name" style="font-size: 0.75rem; text-transform: uppercase;">Theoretical Price</span>
+                                <div class="greek-price-display call-price" id="calc-call-price">₹145.50</div>
+                            </div>
+                            <!-- Call Greeks rows -->
+                            <div class="greek-row">
+                                <span class="greek-name">Delta (Δ)</span>
+                                <span class="greek-val" id="calc-call-delta">0.5230</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Gamma (Γ)</span>
+                                <span class="greek-val" id="calc-call-gamma">0.0004</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Theta (Θ)</span>
+                                <span class="greek-val" id="calc-call-theta">-12.50</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Vega (ν)</span>
+                                <span class="greek-val" id="calc-call-vega">18.40</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Rho (ρ)</span>
+                                <span class="greek-val" id="calc-call-rho">2.45</span>
+                            </div>
+                        </div>
+
+                        <!-- Put Option Box -->
+                        <div class="greek-result-box">
+                            <h4 class="greek-box-title put-box">PUT OPTION</h4>
+                            <div>
+                                <span class="greek-name" style="font-size: 0.75rem; text-transform: uppercase;">Theoretical Price</span>
+                                <div class="greek-price-display put-price" id="calc-put-price">₹125.20</div>
+                            </div>
+                            <!-- Put Greeks rows -->
+                            <div class="greek-row">
+                                <span class="greek-name">Delta (Δ)</span>
+                                <span class="greek-val" id="calc-put-delta">-0.4770</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Gamma (Γ)</span>
+                                <span class="greek-val" id="calc-put-gamma">0.0004</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Theta (Θ)</span>
+                                <span class="greek-val" id="calc-put-theta">-11.20</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Vega (ν)</span>
+                                <span class="greek-val" id="calc-put-vega">18.40</span>
+                            </div>
+                            <div class="greek-row">
+                                <span class="greek-name">Rho (ρ)</span>
+                                <span class="greek-val" id="calc-put-rho">-2.55</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1.25rem; text-align: center;">
+                        Greeks show the price sensitivity of the option relative to changing parameters.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Files -->
+    <script src="greeks.js"></script>
+    <script src="data.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
